@@ -1,0 +1,330 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================
+   TELINK EXAM PLATFORM - GLOBAL STYLES
+   =========================================== */
+
+/* CSS Variables */
+:root {
+  --bg-primary: #0F1C2E;
+  --bg-secondary: #162337;
+  --bg-tertiary: #1D2D44;
+  --accent-green: #3DD68C;
+  --accent-green-hover: #2FC67C;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A4B3C7;
+  --text-muted: #6B7A8F;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-accent: rgba(61, 214, 140, 0.3);
+}
+
+/* Base Styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-telink-bg text-telink-text font-jakarta antialiased;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-telink-bg-secondary rounded;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-telink-text-muted rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-telink-text-secondary;
+}
+
+/* Focus Styles */
+*:focus-visible {
+  @apply outline-none ring-2 ring-telink-accent ring-offset-2 ring-offset-telink-bg;
+}
+
+/* Selection */
+::selection {
+  @apply bg-telink-accent text-telink-bg;
+}
+
+/* ===========================================
+   COMPONENT STYLES
+   =========================================== */
+
+/* Card Glassmorphism */
+.glass-card {
+  @apply bg-telink-bg-secondary/50 backdrop-blur-sm;
+  @apply border border-telink-border rounded-2xl;
+  @apply shadow-card transition-all duration-300;
+}
+
+.glass-card:hover {
+  @apply shadow-card-hover border-telink-border-accent;
+}
+
+/* Button Base */
+.btn {
+  @apply inline-flex items-center justify-center;
+  @apply font-semibold rounded-xl;
+  @apply transition-all duration-200;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn bg-telink-accent text-telink-bg;
+  @apply hover:bg-telink-accent-hover hover:shadow-glow;
+  @apply active:scale-[0.98];
+}
+
+.btn-secondary {
+  @apply btn bg-telink-bg-tertiary text-telink-text;
+  @apply border border-telink-border;
+  @apply hover:border-telink-accent hover:text-telink-accent;
+}
+
+.btn-ghost {
+  @apply btn text-telink-text-secondary;
+  @apply hover:text-telink-text hover:bg-telink-bg-tertiary;
+}
+
+/* Input Styles */
+.input {
+  @apply w-full px-4 py-3;
+  @apply bg-telink-bg-tertiary text-telink-text;
+  @apply border border-telink-border rounded-xl;
+  @apply placeholder:text-telink-text-muted;
+  @apply transition-all duration-200;
+  @apply focus:border-telink-accent focus:ring-1 focus:ring-telink-accent;
+}
+
+/* Progress Bar */
+.progress-bar {
+  @apply h-2 bg-telink-bg-tertiary rounded-full overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full bg-gradient-to-r from-telink-accent to-emerald-400;
+  @apply rounded-full transition-all duration-500 ease-out;
+  box-shadow: 0 0 10px var(--accent-green);
+}
+
+/* Timer */
+.timer {
+  @apply font-mono text-lg font-bold;
+}
+
+.timer-warning {
+  @apply text-status-warning animate-pulse;
+}
+
+/* Question Card */
+.question-card {
+  @apply glass-card p-8;
+}
+
+/* Answer Option */
+.answer-option {
+  @apply flex items-center gap-4 p-4;
+  @apply bg-telink-bg-tertiary/50 border border-telink-border rounded-xl;
+  @apply cursor-pointer transition-all duration-200;
+}
+
+.answer-option:hover {
+  @apply border-telink-accent bg-telink-accent-muted;
+}
+
+.answer-option.selected {
+  @apply border-telink-accent bg-telink-accent-muted;
+  @apply ring-1 ring-telink-accent;
+}
+
+.answer-option.correct {
+  @apply border-status-correct bg-status-correct/10;
+}
+
+.answer-option.incorrect {
+  @apply border-status-incorrect bg-status-incorrect/10;
+}
+
+/* Stats Card */
+.stats-card {
+  @apply glass-card p-6;
+}
+
+.stats-value {
+  @apply text-3xl font-bold text-telink-accent;
+}
+
+.stats-label {
+  @apply text-sm text-telink-text-secondary mt-1;
+}
+
+/* Table */
+.data-table {
+  @apply w-full;
+}
+
+.data-table th {
+  @apply text-left text-sm font-semibold text-telink-text-secondary;
+  @apply py-3 px-4 border-b border-telink-border;
+}
+
+.data-table td {
+  @apply py-4 px-4 border-b border-telink-border/50;
+}
+
+.data-table tr:hover td {
+  @apply bg-telink-bg-tertiary/30;
+}
+
+/* Modal */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/70 backdrop-blur-sm;
+  @apply flex items-center justify-center p-4;
+  @apply z-50;
+}
+
+.modal-content {
+  @apply glass-card p-8 max-w-md w-full;
+  @apply animate-fade-in-up;
+}
+
+/* Expandable Card */
+.expandable-card {
+  @apply glass-card overflow-hidden transition-all duration-300;
+}
+
+.expandable-card-header {
+  @apply p-4 cursor-pointer flex items-center justify-between;
+  @apply hover:bg-telink-bg-tertiary/30;
+}
+
+.expandable-card-content {
+  @apply px-4 pb-4 pt-0;
+}
+
+/* Badge */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5;
+  @apply text-xs font-medium rounded-full;
+}
+
+.badge-success {
+  @apply badge bg-status-correct/20 text-status-correct;
+}
+
+.badge-error {
+  @apply badge bg-status-incorrect/20 text-status-incorrect;
+}
+
+.badge-warning {
+  @apply badge bg-status-warning/20 text-status-warning;
+}
+
+/* ===========================================
+   ANIMATIONS
+   =========================================== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--accent-green);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--accent-green), 0 0 30px var(--accent-green);
+  }
+}
+
+.animate-stagger > * {
+  @apply opacity-0 animate-fade-in-up;
+}
+
+.animate-stagger > *:nth-child(1) { animation-delay: 0.1s; }
+.animate-stagger > *:nth-child(2) { animation-delay: 0.2s; }
+.animate-stagger > *:nth-child(3) { animation-delay: 0.3s; }
+.animate-stagger > *:nth-child(4) { animation-delay: 0.4s; }
+.animate-stagger > *:nth-child(5) { animation-delay: 0.5s; }
+
+/* ===========================================
+   CHART STYLES
+   =========================================== */
+
+.recharts-cartesian-axis-tick-value {
+  @apply fill-telink-text-secondary text-xs;
+}
+
+.recharts-legend-item-text {
+  @apply text-telink-text-secondary;
+}
+
+/* ===========================================
+   FULLSCREEN MODE
+   =========================================== */
+
+.fullscreen-container {
+  @apply fixed inset-0 bg-telink-bg overflow-auto;
+  @apply flex flex-col;
+}
+
+.fullscreen-warning {
+  @apply fixed top-4 left-1/2 -translate-x-1/2;
+  @apply bg-status-warning text-telink-bg;
+  @apply px-6 py-3 rounded-xl font-semibold;
+  @apply shadow-lg z-50;
+  @apply animate-pulse;
+}
+
+/* ===========================================
+   RESPONSIVE
+   =========================================== */
+
+@media (max-width: 640px) {
+  .question-card {
+    @apply p-4;
+  }
+  
+  .answer-option {
+    @apply p-3;
+  }
+  
+  .stats-value {
+    @apply text-2xl;
+  }
+}
