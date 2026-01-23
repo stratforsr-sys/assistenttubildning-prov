@@ -212,7 +212,7 @@ export async function deleteAttempt(id: string) {
 // ANSWERS QUERIES
 // ===========================================
 
-export async function saveAnswer(data: NewAnswer) {
+export async function saveAnswer(data: NewAnswer & { writtenAnswer?: string | null }) {
   // Upsert - update if exists, insert if not
   const existing = await db
     .select()
@@ -224,26 +224,34 @@ export async function saveAnswer(data: NewAnswer) {
       )
     )
     .limit(1)
-  
+
   if (existing[0]) {
     const result = await db
       .update(answers)
       .set({
         selectedOption: data.selectedOption,
+        writtenAnswer: data.writtenAnswer,
         isCorrect: data.isCorrect,
         timeSpentSeconds: data.timeSpentSeconds,
         answeredAt: new Date(),
       })
       .where(eq(answers.id, existing[0].id))
       .returning()
-    
+
     return result[0]
   } else {
     const result = await db
       .insert(answers)
-      .values(data)
+      .values({
+        attemptId: data.attemptId,
+        questionId: data.questionId,
+        selectedOption: data.selectedOption,
+        writtenAnswer: data.writtenAnswer,
+        isCorrect: data.isCorrect,
+        timeSpentSeconds: data.timeSpentSeconds,
+      })
       .returning()
-    
+
     return result[0]
   }
 }
@@ -365,71 +373,104 @@ export async function getQuestionStats() {
     .from(answers)
     .innerJoin(attempts, eq(answers.attemptId, attempts.id))
     .where(eq(attempts.isCompleted, true))
-  
+
   // Group by question
-  const questionMap = new Map<number, { 
+  const questionMap = new Map<number, {
     total: number
     correct: number
     options: Map<string, number>
   }>()
-  
+
   for (const answer of allAnswers) {
     if (!questionMap.has(answer.questionId)) {
       questionMap.set(answer.questionId, {
         total: 0,
         correct: 0,
-        options: new Map([['A', 0], ['B', 0], ['C', 0], ['D', 0], ['none', 0]]),
+        options: new Map([['A', 0], ['B', 0], ['C', 0], ['D', 0], ['true', 0], ['false', 0], ['written', 0], ['none', 0]]),
       })
     }
-    
+
     const stats = questionMap.get(answer.questionId)!
     stats.total++
     if (answer.isCorrect) stats.correct++
-    
+
     const opt = answer.selectedOption || 'none'
     stats.options.set(opt, (stats.options.get(opt) || 0) + 1)
   }
-  
+
   // Convert to array with question details
   const result = QUESTIONS.map(question => {
     const stats = questionMap.get(question.id) || {
       total: 0,
       correct: 0,
-      options: new Map([['A', 0], ['B', 0], ['C', 0], ['D', 0], ['none', 0]]),
+      options: new Map([['A', 0], ['B', 0], ['C', 0], ['D', 0], ['true', 0], ['false', 0], ['written', 0], ['none', 0]]),
     }
-    
-    const correctPercentage = stats.total > 0 
-      ? Math.round((stats.correct / stats.total) * 100) 
+
+    const correctPercentage = stats.total > 0
+      ? Math.round((stats.correct / stats.total) * 100)
       : 0
-    
-    const optionDistribution = ['A', 'B', 'C', 'D'].map(opt => ({
-      option: opt,
-      count: stats.options.get(opt) || 0,
-      percentage: stats.total > 0 
-        ? Math.round(((stats.options.get(opt) || 0) / stats.total) * 100)
-        : 0,
-    }))
-    
-    // Find most common wrong answer
+
+    // Different option distribution based on question type
+    let optionDistribution
+    if (question.type === 'multiple-choice') {
+      optionDistribution = ['A', 'B', 'C', 'D'].map(opt => ({
+        option: opt,
+        count: stats.options.get(opt) || 0,
+        percentage: stats.total > 0
+          ? Math.round(((stats.options.get(opt) || 0) / stats.total) * 100)
+          : 0,
+      }))
+    } else if (question.type === 'true-false') {
+      optionDistribution = ['true', 'false'].map(opt => ({
+        option: opt === 'true' ? 'Sant' : 'Falskt',
+        count: stats.options.get(opt) || 0,
+        percentage: stats.total > 0
+          ? Math.round(((stats.options.get(opt) || 0) / stats.total) * 100)
+          : 0,
+      }))
+    } else {
+      // Written questions - just show correct/incorrect
+      optionDistribution = [
+        {
+          option: 'Rätt',
+          count: stats.correct,
+          percentage: stats.total > 0
+            ? Math.round((stats.correct / stats.total) * 100)
+            : 0,
+        },
+        {
+          option: 'Fel',
+          count: stats.total - stats.correct,
+          percentage: stats.total > 0
+            ? Math.round(((stats.total - stats.correct) / stats.total) * 100)
+            : 0,
+        },
+      ]
+    }
+
+    // Find most common wrong answer (only for multiple choice)
     let mostCommonWrongAnswer: string | null = null
-    let maxWrongCount = 0
-    for (const [opt, optCount] of stats.options.entries()) {
-      if (opt !== question.correctAnswer && opt !== 'none' && optCount > maxWrongCount) {
-        maxWrongCount = optCount
-        mostCommonWrongAnswer = opt
+    if (question.type === 'multiple-choice') {
+      let maxWrongCount = 0
+      for (const [opt, optCount] of stats.options.entries()) {
+        if (opt !== question.correctAnswer && opt !== 'none' && ['A', 'B', 'C', 'D'].includes(opt) && optCount > maxWrongCount) {
+          maxWrongCount = optCount
+          mostCommonWrongAnswer = opt
+        }
       }
     }
-    
+
     return {
       questionId: question.id,
       questionText: question.text,
+      questionType: question.type,
       correctPercentage,
       optionDistribution,
       difficulty: correctPercentage > 90 ? 'easy' : correctPercentage < 30 ? 'hard' : 'medium',
       mostCommonWrongAnswer,
     }
   })
-  
+
   return result
 }
 
@@ -438,19 +479,20 @@ export async function getScoreDistribution() {
     .select({ totalCorrect: attempts.totalCorrect })
     .from(attempts)
     .where(eq(attempts.isCompleted, true))
-  
+
+  // Updated ranges for 30 questions
   const ranges = [
-    { min: 0, max: 5, label: '0-5' },
-    { min: 6, max: 10, label: '6-10' },
-    { min: 11, max: 15, label: '11-15' },
-    { min: 16, max: 18, label: '16-18' },
-    { min: 19, max: 20, label: '19-20' },
-    { min: 21, max: 22, label: '21-22' },
+    { min: 0, max: 6, label: '0-6' },
+    { min: 7, max: 12, label: '7-12' },
+    { min: 13, max: 18, label: '13-18' },
+    { min: 19, max: 24, label: '19-24' },
+    { min: 25, max: 27, label: '25-27' },
+    { min: 28, max: 30, label: '28-30' },
   ]
-  
+
   return ranges.map(range => ({
     range: range.label,
-    count: allAttempts.filter(a => 
+    count: allAttempts.filter(a =>
       (a.totalCorrect || 0) >= range.min && (a.totalCorrect || 0) <= range.max
     ).length,
   }))

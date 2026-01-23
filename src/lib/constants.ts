@@ -4,9 +4,12 @@
 
 // Exam configuration
 export const EXAM_CONFIG = {
-  TIME_LIMIT_MINUTES: parseInt(process.env.EXAM_TIME_LIMIT_MINUTES || '30'),
+  TIME_LIMIT_MINUTES: parseInt(process.env.EXAM_TIME_LIMIT_MINUTES || '35'),
   WARNING_MINUTES: parseInt(process.env.EXAM_WARNING_MINUTES || '5'),
-  TOTAL_QUESTIONS: 22,
+  TOTAL_QUESTIONS: 30,
+  MULTIPLE_CHOICE_QUESTIONS: 23,
+  TRUE_FALSE_QUESTIONS: 4,
+  WRITTEN_QUESTIONS: 3,
   DEFAULT_CODE: process.env.EXAM_CODE_DEFAULT || 'Telink2026',
 } as const
 
@@ -58,7 +61,8 @@ export const MESSAGES = {
   // Exam rules
   EXAM_RULES_TITLE: 'Viktiga regler innan du börjar',
   EXAM_RULES: [
-    'Provet består av 22 frågor och tar max 30 minuter.',
+    'Provet består av 30 frågor och tar max 35 minuter.',
+    'Det finns flervalsfrågor, sant/falskt-frågor och korta skriftliga svar.',
     'Du kan INTE gå tillbaka och ändra dina svar.',
     'Provet måste genomföras i helskärmsläge.',
     'Om du lämnar helskärmsläge skickas provet in automatiskt.',
@@ -135,12 +139,19 @@ export const DIFFICULTY_THRESHOLDS = {
   HARD: 30, // < 30% correct = too hard
 } as const
 
-// Score distribution ranges
+// Score distribution ranges (updated for 30 questions)
 export const SCORE_RANGES = [
-  { min: 0, max: 5, label: '0-5' },
-  { min: 6, max: 10, label: '6-10' },
-  { min: 11, max: 15, label: '11-15' },
-  { min: 16, max: 18, label: '16-18' },
-  { min: 19, max: 20, label: '19-20' },
-  { min: 21, max: 22, label: '21-22' },
+  { min: 0, max: 6, label: '0-6' },
+  { min: 7, max: 12, label: '7-12' },
+  { min: 13, max: 18, label: '13-18' },
+  { min: 19, max: 24, label: '19-24' },
+  { min: 25, max: 27, label: '25-27' },
+  { min: 28, max: 30, label: '28-30' },
 ] as const
+
+// Pass thresholds
+export const PASS_THRESHOLDS = {
+  PASS: 80, // 80% = 24/30 = godkänt
+  GOOD: 90, // 90% = 27/30 = mycket bra
+  EXCELLENT: 100, // 100% = 30/30 = utmärkt
+} as const

@@ -54,7 +54,7 @@ export const attempts = pgTable('attempts', {
   completedAt: timestamp('completed_at'),
   totalScore: integer('total_score'),
   totalCorrect: integer('total_correct'),
-  totalQuestions: integer('total_questions').default(22).notNull(),
+  totalQuestions: integer('total_questions').default(30).notNull(),
   totalTimeSeconds: integer('total_time_seconds'),
   isCompleted: boolean('is_completed').default(false).notNull(),
   isTimedOut: boolean('is_timed_out').default(false).notNull(),
@@ -70,7 +70,8 @@ export const answers = pgTable('answers', {
   id: uuid('id').defaultRandom().primaryKey(),
   attemptId: uuid('attempt_id').references(() => attempts.id, { onDelete: 'cascade' }).notNull(),
   questionId: integer('question_id').notNull(),
-  selectedOption: char('selected_option', { length: 1 }), // A, B, C, D or null if not answered
+  selectedOption: varchar('selected_option', { length: 10 }), // A, B, C, D, 'true', 'false', 'written'
+  writtenAnswer: text('written_answer'), // For written questions and true-false motivation
   isCorrect: boolean('is_correct'),
   timeSpentSeconds: integer('time_spent_seconds'),
   answeredAt: timestamp('answered_at').defaultNow().notNull(),

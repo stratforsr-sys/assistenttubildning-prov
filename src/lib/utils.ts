@@ -123,15 +123,23 @@ export function getExamState(): {
   attemptId: string
   currentIndex: number
   answers: Record<number, string>
+  writtenAnswers: Record<number, string>
+  motivations: Record<number, string>
   startTime: number
 } | null {
   if (typeof window === 'undefined') return null
-  
+
   const stored = sessionStorage.getItem('examState')
   if (!stored) return null
-  
+
   try {
-    return JSON.parse(stored)
+    const state = JSON.parse(stored)
+    // Add new fields if missing (backward compatibility)
+    return {
+      ...state,
+      writtenAnswers: state.writtenAnswers || {},
+      motivations: state.motivations || {},
+    }
   } catch {
     return null
   }
@@ -141,6 +149,8 @@ export function saveExamState(state: {
   attemptId: string
   currentIndex: number
   answers: Record<number, string>
+  writtenAnswers: Record<number, string>
+  motivations: Record<number, string>
   startTime: number
 }): void {
   if (typeof window === 'undefined') return

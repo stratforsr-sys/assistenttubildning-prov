@@ -52,6 +52,8 @@ export default function ParticipantLoginPage() {
         attemptId: data.data.attemptId,
         currentIndex: 0,
         answers: {},
+        writtenAnswers: {},
+        motivations: {},
         startTime: Date.now(),
       })
       

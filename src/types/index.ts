@@ -45,12 +45,54 @@ export interface Answer {
 }
 
 // Question types
+export type QuestionType = 'multiple-choice' | 'true-false' | 'written'
+
 export interface QuestionOption {
   key: 'A' | 'B' | 'C' | 'D'
   text: string
 }
 
-export interface Question {
+export interface TrueFalseOption {
+  key: 'true' | 'false'
+  text: string
+}
+
+// Base question interface
+export interface BaseQuestion {
+  id: number
+  text: string
+  type: QuestionType
+  isFollowUp?: boolean
+}
+
+// Multiple choice question (A, B, C, D)
+export interface MultipleChoiceQuestion extends BaseQuestion {
+  type: 'multiple-choice'
+  options: QuestionOption[]
+  correctAnswer: 'A' | 'B' | 'C' | 'D'
+}
+
+// True/False question with motivation
+export interface TrueFalseQuestion extends BaseQuestion {
+  type: 'true-false'
+  correctAnswer: 'true' | 'false'
+  acceptedKeywords: string[] // Keywords that should appear in motivation
+  explanation: string // Shown after exam
+}
+
+// Written answer question (short text)
+export interface WrittenQuestion extends BaseQuestion {
+  type: 'written'
+  acceptedKeywords: string[] // Keywords that should appear in answer
+  exampleAnswer: string // Shown after exam
+  maxLength?: number // Max characters (default 200)
+}
+
+// Union type for all questions
+export type Question = MultipleChoiceQuestion | TrueFalseQuestion | WrittenQuestion
+
+// Legacy interface for backward compatibility
+export interface LegacyQuestion {
   id: number
   text: string
   options: QuestionOption[]
@@ -58,10 +100,36 @@ export interface Question {
   isFollowUp?: boolean
 }
 
-export interface ShuffledQuestion extends Omit<Question, 'correctAnswer'> {
+// Shuffled question for exam (multiple choice)
+export interface ShuffledMultipleChoiceQuestion {
+  id: number
+  text: string
+  type: 'multiple-choice'
+  options: QuestionOption[]
   originalOrder: ('A' | 'B' | 'C' | 'D')[]
   shuffledCorrectIndex: number
+  isFollowUp?: boolean
 }
+
+// Shuffled true/false question
+export interface ShuffledTrueFalseQuestion {
+  id: number
+  text: string
+  type: 'true-false'
+  isFollowUp?: boolean
+}
+
+// Shuffled written question
+export interface ShuffledWrittenQuestion {
+  id: number
+  text: string
+  type: 'written'
+  maxLength?: number
+  isFollowUp?: boolean
+}
+
+// Union type for shuffled questions
+export type ShuffledQuestion = ShuffledMultipleChoiceQuestion | ShuffledTrueFalseQuestion | ShuffledWrittenQuestion
 
 // API Response types
 export interface ApiResponse<T = unknown> {
@@ -86,7 +154,8 @@ export interface StartExamResponse {
 export interface SubmitAnswerRequest {
   attemptId: string
   questionId: number
-  selectedOption: string
+  selectedOption: string // For multiple-choice: 'A'/'B'/'C'/'D', for true-false: 'true'/'false'
+  writtenAnswer?: string // For written and true-false motivation
   timeSpent: number
 }
 
@@ -108,10 +177,16 @@ export interface ExamResult {
 export interface AnswerResult {
   questionId: number
   questionText: string
-  options: QuestionOption[]
+  questionType: QuestionType
+  options?: QuestionOption[] // For multiple-choice
   selectedOption: string | null
-  correctOption: string
+  writtenAnswer?: string | null // For written and true-false motivation
+  correctOption?: string // For multiple-choice and true-false
+  acceptedKeywords?: string[] // For written questions
+  exampleAnswer?: string // For written questions
+  explanation?: string // For true-false questions
   isCorrect: boolean
+  isPartiallyCorrect?: boolean // For written answers with some keywords
   timeSpent: number
 }
 

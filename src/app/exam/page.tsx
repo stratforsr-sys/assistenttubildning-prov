@@ -15,6 +15,8 @@ interface ExamState {
   attemptId: string
   currentIndex: number
   answers: Record<number, string>
+  writtenAnswers: Record<number, string>
+  motivations: Record<number, string>
   startTime: number
 }
 
@@ -24,46 +26,56 @@ export default function ExamPage() {
   const [questions, setQuestions] = useState<ShuffledQuestion[]>([])
   const [timeLimit, setTimeLimit] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [writtenAnswer, setWrittenAnswer] = useState<string>('')
+  const [motivation, setMotivation] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [questionStartTime, setQuestionStartTime] = useState(Date.now())
   const hasInitialized = useRef(false)
-  
+
   // Initialize exam state from session storage
   useEffect(() => {
     if (hasInitialized.current) return
     hasInitialized.current = true
-    
+
     const state = getExamState()
     const questionsData = sessionStorage.getItem('examQuestions')
     const timeLimitData = sessionStorage.getItem('examTimeLimit')
-    
+
     if (!state || !questionsData || !timeLimitData) {
       router.replace('/participant-login')
       return
     }
-    
+
     setExamState(state)
     setQuestions(JSON.parse(questionsData))
     setTimeLimit(parseInt(timeLimitData))
-    setSelectedOption(state.answers[state.currentIndex] || null)
+
+    // Restore current question state
+    const currentQ = JSON.parse(questionsData)[state.currentIndex]
+    if (currentQ) {
+      setSelectedOption(state.answers[state.currentIndex] || null)
+      setWrittenAnswer(state.writtenAnswers[state.currentIndex] || '')
+      setMotivation(state.motivations[state.currentIndex] || '')
+    }
+
     setQuestionStartTime(Date.now())
   }, [router])
-  
+
   // Calculate remaining time
   const getRemainingSeconds = useCallback(() => {
     if (!examState) return 0
     const elapsed = Math.floor((Date.now() - examState.startTime) / 1000)
     return Math.max(0, timeLimit - elapsed)
   }, [examState, timeLimit])
-  
+
   // Save answer to server
-  const saveAnswer = useCallback(async (questionIndex: number, option: string) => {
+  const saveAnswer = useCallback(async (questionIndex: number, option: string, written?: string) => {
     if (!examState) return
-    
+
     const question = questions[questionIndex]
     const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000)
-    
+
     try {
       await fetch('/api/participant/submit-answer', {
         method: 'POST',
@@ -72,6 +84,7 @@ export default function ExamPage() {
           attemptId: examState.attemptId,
           questionId: question.id,
           selectedOption: option,
+          writtenAnswer: written || examState.writtenAnswers[questionIndex] || examState.motivations[questionIndex],
           timeSpent,
         }),
       })
@@ -79,16 +92,16 @@ export default function ExamPage() {
       console.error('Save answer error:', error)
     }
   }, [examState, questions, questionStartTime])
-  
+
   // Complete exam
   const completeExam = useCallback(async (isTimedOut: boolean = false) => {
     if (!examState || isSubmitting) return
-    
+
     setIsSubmitting(true)
-    
+
     try {
       const totalTimeSeconds = Math.floor((Date.now() - examState.startTime) / 1000)
-      
+
       const response = await fetch('/api/participant/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,16 +111,16 @@ export default function ExamPage() {
           totalTimeSeconds,
         }),
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         // Store result for review page
         sessionStorage.setItem('examResult', JSON.stringify(data.data))
         clearExamState()
         sessionStorage.removeItem('examQuestions')
         sessionStorage.removeItem('examTimeLimit')
-        
+
         router.replace('/review')
       }
     } catch (error) {
@@ -115,60 +128,118 @@ export default function ExamPage() {
       setIsSubmitting(false)
     }
   }, [examState, isSubmitting, router])
-  
+
   // Handle time up
   const handleTimeUp = useCallback(() => {
     completeExam(true)
   }, [completeExam])
-  
+
   // Handle exit attempt (fullscreen exit or tab switch)
   const handleExitAttempt = useCallback(() => {
     completeExam(true)
   }, [completeExam])
-  
-  // Handle option selection
+
+  // Handle option selection (for multiple choice and true/false)
   const handleSelectOption = (option: string) => {
     if (!examState) return
-    
+
     setSelectedOption(option)
-    
+
     // Update local state
     const newAnswers = { ...examState.answers, [examState.currentIndex]: option }
     const newState = { ...examState, answers: newAnswers }
     setExamState(newState)
     saveExamState(newState)
-    
+
     // Save to server
     saveAnswer(examState.currentIndex, option)
   }
-  
+
+  // Handle written answer change
+  const handleWrittenAnswerChange = (answer: string) => {
+    if (!examState) return
+
+    setWrittenAnswer(answer)
+
+    // Update local state
+    const newWrittenAnswers = { ...examState.writtenAnswers, [examState.currentIndex]: answer }
+    const newState = { ...examState, writtenAnswers: newWrittenAnswers }
+    setExamState(newState)
+    saveExamState(newState)
+  }
+
+  // Handle motivation change (for true/false)
+  const handleMotivationChange = (newMotivation: string) => {
+    if (!examState) return
+
+    setMotivation(newMotivation)
+
+    // Update local state
+    const newMotivations = { ...examState.motivations, [examState.currentIndex]: newMotivation }
+    const newState = { ...examState, motivations: newMotivations }
+    setExamState(newState)
+    saveExamState(newState)
+  }
+
+  // Check if current question is answered
+  const isCurrentQuestionAnswered = () => {
+    if (!examState || questions.length === 0) return false
+
+    const currentQuestion = questions[examState.currentIndex]
+
+    switch (currentQuestion.type) {
+      case 'multiple-choice':
+        return !!selectedOption
+      case 'true-false':
+        return !!selectedOption // Motivation is optional
+      case 'written':
+        return writtenAnswer.trim().length > 0
+      default:
+        return false
+    }
+  }
+
   // Handle next question
   const handleNextQuestion = () => {
-    if (!examState || !selectedOption) return
-    
+    if (!examState || !isCurrentQuestionAnswered()) return
+
+    const currentQuestion = questions[examState.currentIndex]
+
+    // Save final answer before moving
+    if (currentQuestion.type === 'written') {
+      saveAnswer(examState.currentIndex, 'written', writtenAnswer)
+    } else if (currentQuestion.type === 'true-false' && motivation) {
+      saveAnswer(examState.currentIndex, selectedOption!, motivation)
+    }
+
     const isLastQuestion = examState.currentIndex === questions.length - 1
-    
+
     if (isLastQuestion) {
       setShowConfirmModal(true)
     } else {
       // Move to next question
+      const nextIndex = examState.currentIndex + 1
       const newState = {
         ...examState,
-        currentIndex: examState.currentIndex + 1,
+        currentIndex: nextIndex,
       }
       setExamState(newState)
       saveExamState(newState)
-      setSelectedOption(newState.answers[newState.currentIndex] || null)
+
+      // Load next question's state
+      setSelectedOption(newState.answers[nextIndex] || null)
+      setWrittenAnswer(newState.writtenAnswers[nextIndex] || '')
+      setMotivation(newState.motivations[nextIndex] || '')
       setQuestionStartTime(Date.now())
     }
   }
-  
+
   // Handle submit confirmation
   const handleConfirmSubmit = () => {
     setShowConfirmModal(false)
     completeExam(false)
   }
-  
+
   // Loading state
   if (!examState || questions.length === 0) {
     return (
@@ -179,10 +250,10 @@ export default function ExamPage() {
       </div>
     )
   }
-  
+
   const currentQuestion = questions[examState.currentIndex]
   const isLastQuestion = examState.currentIndex === questions.length - 1
-  
+
   return (
     <FullscreenLock onExitAttempt={handleExitAttempt}>
       <div className="min-h-screen bg-telink-bg flex flex-col">
@@ -193,7 +264,7 @@ export default function ExamPage() {
           remainingSeconds={getRemainingSeconds()}
           onTimeUp={handleTimeUp}
         />
-        
+
         {/* Main content */}
         <main className="flex-1 flex items-center justify-center p-4 md:p-8">
           <div className="w-full max-w-3xl">
@@ -202,15 +273,19 @@ export default function ExamPage() {
               question={currentQuestion}
               questionNumber={examState.currentIndex + 1}
               selectedOption={selectedOption}
+              writtenAnswer={writtenAnswer}
+              motivation={motivation}
               onSelectOption={handleSelectOption}
+              onWrittenAnswerChange={handleWrittenAnswerChange}
+              onMotivationChange={handleMotivationChange}
               isDisabled={isSubmitting}
             />
-            
+
             {/* Navigation */}
             <div className="mt-6 flex justify-end">
               <Button
                 onClick={handleNextQuestion}
-                disabled={!selectedOption || isSubmitting}
+                disabled={!isCurrentQuestionAnswered() || isSubmitting}
                 size="lg"
                 isLoading={isSubmitting}
               >
@@ -224,7 +299,7 @@ export default function ExamPage() {
             </div>
           </div>
         </main>
-        
+
         {/* Confirm submit modal */}
         <ConfirmModal
           isOpen={showConfirmModal}
