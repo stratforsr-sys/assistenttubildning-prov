@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { ScoreSummary } from '@/components/review/ScoreSummary'
-import { ResultCard } from '@/components/review/ResultCard'
+import { AdminResultCard } from '@/components/admin/AdminResultCard'
 import { MESSAGES } from '@/lib/constants'
 import { formatDate } from '@/lib/utils'
 import type { ExamResult } from '@/types'
@@ -21,10 +21,11 @@ export default function AttemptDetailPage() {
   const router = useRouter()
   const params = useParams()
   const attemptId = params.id as string
-  
+
   const [isLoading, setIsLoading] = useState(true)
   const [attempt, setAttempt] = useState<AttemptDetail | null>(null)
   const [error, setError] = useState('')
+  const [displayTotals, setDisplayTotals] = useState<{ totalCorrect: number; totalScore: number } | null>(null)
   
   useEffect(() => {
     const fetchAttempt = async () => {
@@ -141,10 +142,15 @@ export default function AttemptDetailPage() {
         {/* Score summary */}
         <div className="mb-8">
           <ScoreSummary
-            totalCorrect={attempt.totalCorrect}
+            totalCorrect={displayTotals?.totalCorrect ?? attempt.totalCorrect}
             totalQuestions={attempt.totalQuestions}
             totalTimeSeconds={attempt.totalTimeSeconds}
           />
+          {displayTotals && displayTotals.totalCorrect !== attempt.totalCorrect && (
+            <div className="mt-2 text-sm text-telink-accent text-center">
+              Poängen har uppdaterats efter manuell bedömning
+            </div>
+          )}
         </div>
         
         {/* Results heading */}
@@ -160,10 +166,14 @@ export default function AttemptDetailPage() {
         {/* Results list */}
         <div className="space-y-3">
           {attempt.answers.map((result, index) => (
-            <ResultCard
+            <AdminResultCard
               key={result.questionId}
               result={result}
               questionNumber={index + 1}
+              attemptId={attemptId}
+              onGradeChange={(questionId, isCorrect, newTotals) => {
+                setDisplayTotals(newTotals)
+              }}
             />
           ))}
         </div>

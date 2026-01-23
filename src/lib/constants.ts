@@ -4,8 +4,8 @@
 
 // Exam configuration
 export const EXAM_CONFIG = {
-  TIME_LIMIT_MINUTES: parseInt(process.env.EXAM_TIME_LIMIT_MINUTES || '35'),
-  WARNING_MINUTES: parseInt(process.env.EXAM_WARNING_MINUTES || '5'),
+  TIME_LIMIT_MINUTES: parseInt(process.env.EXAM_TIME_LIMIT_MINUTES || '12'),
+  WARNING_MINUTES: parseInt(process.env.EXAM_WARNING_MINUTES || '2'),
   TOTAL_QUESTIONS: 30,
   MULTIPLE_CHOICE_QUESTIONS: 23,
   TRUE_FALSE_QUESTIONS: 4,
@@ -56,12 +56,12 @@ export const MESSAGES = {
   NEXT_QUESTION: 'Nästa fråga',
   SUBMIT_EXAM: 'Lämna in prov',
   TIME_REMAINING: 'Tid kvar',
-  TIME_WARNING: '⚠️ Mindre än 5 minuter kvar!',
+  TIME_WARNING: '⚠️ Mindre än 2 minuter kvar!',
   
   // Exam rules
   EXAM_RULES_TITLE: 'Viktiga regler innan du börjar',
   EXAM_RULES: [
-    'Provet består av 30 frågor och tar max 35 minuter.',
+    'Provet består av 30 frågor och tar max 12 minuter.',
     'Det finns flervalsfrågor, sant/falskt-frågor och korta skriftliga svar.',
     'Du kan INTE gå tillbaka och ändra dina svar.',
     'Provet måste genomföras i helskärmsläge.',
