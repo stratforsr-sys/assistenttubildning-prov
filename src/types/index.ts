@@ -39,6 +39,7 @@ export interface Answer {
   attemptId: string
   questionId: number
   selectedOption: string | null
+  writtenAnswer: string | null
   isCorrect: boolean | null
   timeSpentSeconds: number | null
   answeredAt: Date
