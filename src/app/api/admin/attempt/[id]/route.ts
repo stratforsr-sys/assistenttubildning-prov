@@ -13,7 +13,7 @@ interface QuestionOrderItem {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check admin auth
@@ -23,7 +23,7 @@ export async function GET(
   }
 
   try {
-    const attemptId = params.id
+    const { id: attemptId } = await params
 
     // Get attempt with participant
     const attemptData = await getAttemptWithParticipant(attemptId)

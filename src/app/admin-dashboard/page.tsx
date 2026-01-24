@@ -19,7 +19,7 @@ type TabType = 'overview' | 'participants' | 'questions' | 'codes'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [activeTab, setActiveTab] = useState<TabType>('participants')
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [attempts, setAttempts] = useState<ParticipantAttempt[]>([])
