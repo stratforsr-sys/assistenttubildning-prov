@@ -8,7 +8,8 @@ import type { QuestionType } from '@/types'
 interface QuestionOrderItem {
   id: number
   type: QuestionType
-  originalOrder?: string[] // Only for multiple-choice
+  originalOrder?: string[]
+  shuffledCorrectIndex?: number
 }
 
 export async function GET(
@@ -16,7 +17,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Check admin auth
     await requireAdmin()
   } catch {
     return errorResponse('Ej auktoriserad', 401)
@@ -25,91 +25,118 @@ export async function GET(
   try {
     const { id: attemptId } = await params
 
-    // Get attempt with participant
+    console.log('Fetching attempt:', attemptId)
+
     const attemptData = await getAttemptWithParticipant(attemptId)
 
     if (!attemptData) {
+      console.log('Attempt not found:', attemptId)
       return errorResponse('Försöket hittades inte', 404)
     }
 
     const { attempt, participant } = attemptData
+    console.log('Found attempt for:', participant.firstName, participant.lastName)
 
-    // Get all answers
     const answers = await getAnswersByAttemptId(attemptId)
+    console.log('Found answers:', answers.length)
 
-    // Get question order from attempt
+    // Parse question order safely
     let questionOrder: QuestionOrderItem[] = []
     try {
-      questionOrder = JSON.parse(attempt.questionOrder || '[]')
-    } catch {
-      // Fallback to default order
+      const parsed = JSON.parse(attempt.questionOrder || '[]')
+      questionOrder = Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      console.log('Failed to parse questionOrder, using default')
       questionOrder = QUESTIONS.map(q => ({
         id: q.id,
         type: q.type,
-        originalOrder: q.type === 'multiple-choice' ? ['A', 'B', 'C', 'D'] : undefined
       }))
     }
 
-    // Build detailed answer results
+    console.log('Question order count:', questionOrder.length)
+
+    // If no question order saved, use all questions in default order
+    if (questionOrder.length === 0) {
+      questionOrder = QUESTIONS.map(q => ({
+        id: q.id,
+        type: q.type,
+      }))
+    }
+
+    // Build answer results
     const answerResults = questionOrder.map((qOrder) => {
       const question = getQuestionById(qOrder.id)
       const answer = answers.find(a => a.questionId === qOrder.id)
 
       if (!question) {
+        console.log('Question not found:', qOrder.id)
         return null
       }
 
-      // Handle different question types
-      if (question.type === 'multiple-choice') {
-        // Map the correct answer to shuffled position
-        const originalOrder = qOrder.originalOrder || ['A', 'B', 'C', 'D']
-        const correctIndex = originalOrder.indexOf(question.correctAnswer)
-        const correctOption = (['A', 'B', 'C', 'D'] as const)[correctIndex]
+      // Base result
+      const baseResult = {
+        questionId: question.id,
+        questionText: question.text,
+        isCorrect: answer?.isCorrect ?? false,
+        timeSpent: answer?.timeSpentSeconds ?? 0,
+      }
 
-        // Map options back to shuffled display
-        const displayOptions = question.options.map((_, idx) => {
-          return {
-            key: (['A', 'B', 'C', 'D'] as const)[idx],
-            text: question.options.find(o => o.key === originalOrder[idx])?.text || '',
-          }
-        })
+      if (question.type === 'multiple-choice') {
+        // Get the correct option - use shuffledCorrectIndex if available
+        let correctOption = 'A'
+        if (typeof qOrder.shuffledCorrectIndex === 'number') {
+          correctOption = ['A', 'B', 'C', 'D'][qOrder.shuffledCorrectIndex] || 'A'
+        } else if (Array.isArray(qOrder.originalOrder)) {
+          const correctIndex = qOrder.originalOrder.indexOf(question.correctAnswer)
+          correctOption = ['A', 'B', 'C', 'D'][correctIndex >= 0 ? correctIndex : 0]
+        }
+
+        // Build display options
+        let displayOptions = question.options.map((opt, idx) => ({
+          key: ['A', 'B', 'C', 'D'][idx] as 'A' | 'B' | 'C' | 'D',
+          text: opt.text,
+        }))
+
+        // If we have originalOrder, reorder the options
+        if (Array.isArray(qOrder.originalOrder) && qOrder.originalOrder.length === 4) {
+          displayOptions = qOrder.originalOrder.map((origKey, idx) => {
+            const origOption = question.options.find(o => o.key === origKey)
+            return {
+              key: ['A', 'B', 'C', 'D'][idx] as 'A' | 'B' | 'C' | 'D',
+              text: origOption?.text || '',
+            }
+          })
+        }
 
         return {
-          questionId: question.id,
-          questionText: question.text,
+          ...baseResult,
           questionType: 'multiple-choice' as const,
           options: displayOptions,
           selectedOption: answer?.selectedOption || null,
           correctOption,
-          isCorrect: answer?.isCorrect || false,
-          timeSpent: answer?.timeSpentSeconds || 0,
         }
       } else if (question.type === 'true-false') {
         return {
-          questionId: question.id,
-          questionText: question.text,
+          ...baseResult,
           questionType: 'true-false' as const,
           selectedOption: answer?.selectedOption || null,
           correctOption: question.correctAnswer,
           writtenAnswer: answer?.writtenAnswer || null,
           explanation: question.explanation,
-          isCorrect: answer?.isCorrect || false,
-          timeSpent: answer?.timeSpentSeconds || 0,
         }
       } else {
         // Written question
         return {
-          questionId: question.id,
-          questionText: question.text,
+          ...baseResult,
           questionType: 'written' as const,
           writtenAnswer: answer?.writtenAnswer || null,
           acceptedKeywords: question.acceptedKeywords,
           exampleAnswer: question.exampleAnswer,
-          isCorrect: answer?.isCorrect || false,
-          timeSpent: answer?.timeSpentSeconds || 0,
         }
       }
-    }).filter(Boolean)
+    }).filter((r): r is NonNullable<typeof r> => r !== null)
+
+    console.log('Built answer results:', answerResults.length)
 
     return successResponse({
       attemptId: attempt.id,
@@ -125,6 +152,8 @@ export async function GET(
     })
   } catch (error) {
     console.error('Get attempt detail error:', error)
-    return errorResponse('Ett fel uppstod', 500)
+    // Return more detailed error info in development
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return errorResponse(`Ett fel uppstod: ${errorMessage}`, 500)
   }
 }
