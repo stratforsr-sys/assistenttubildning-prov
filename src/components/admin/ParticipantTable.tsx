@@ -65,24 +65,40 @@ export function ParticipantTable({ attempts, onView, onDelete }: ParticipantTabl
 
     try {
       const res = await fetch(`/api/admin/attempt/${attemptId}`)
-      const data = await res.json()
+      const text = await res.text()
+      console.log('API Response:', text)
 
-      if (data.success) {
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch (e) {
+        console.error('Failed to parse JSON:', text)
+        setExpandedAttempts(prev => ({
+          ...prev,
+          [attemptId]: { id: attemptId, answers: [], isLoading: false, error: `Ogiltigt svar från server: ${text.substring(0, 100)}` }
+        }))
+        return
+      }
+
+      if (data.success && data.data?.answers) {
         setExpandedAttempts(prev => ({
           ...prev,
           [attemptId]: { id: attemptId, answers: data.data.answers, isLoading: false, error: null }
         }))
       } else {
+        const errorMsg = data.error || data.message || 'Kunde inte hämta svar'
+        console.error('API error:', errorMsg)
         setExpandedAttempts(prev => ({
           ...prev,
-          [attemptId]: { id: attemptId, answers: [], isLoading: false, error: data.error || 'Kunde inte hämta svar' }
+          [attemptId]: { id: attemptId, answers: [], isLoading: false, error: errorMsg }
         }))
       }
     } catch (error) {
       console.error('Fetch answers error:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Okänt fel'
       setExpandedAttempts(prev => ({
         ...prev,
-        [attemptId]: { id: attemptId, answers: [], isLoading: false, error: 'Ett fel uppstod vid hämtning av svar' }
+        [attemptId]: { id: attemptId, answers: [], isLoading: false, error: `Nätverksfel: ${errorMsg}` }
       }))
     }
   }
