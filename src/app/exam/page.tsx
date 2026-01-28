@@ -122,9 +122,15 @@ export default function ExamPage() {
         sessionStorage.removeItem('examTimeLimit')
 
         router.replace('/review')
+      } else {
+        // Handle server error
+        console.error('Complete exam failed:', data.error)
+        alert(`Ett fel uppstod: ${data.error || 'Kunde inte slutföra provet'}`)
+        setIsSubmitting(false)
       }
     } catch (error) {
       console.error('Complete exam error:', error)
+      alert('Ett nätverksfel uppstod. Försök igen.')
       setIsSubmitting(false)
     }
   }, [examState, isSubmitting, router])

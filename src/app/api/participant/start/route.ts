@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('Alla fält måste fyllas i korrekt', 400)
     }
     console.error('Start exam error:', error)
-    return errorResponse('Ett fel uppstod vid start av provet', 500)
+    // Return more descriptive error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Okänt fel'
+    return errorResponse(`Databasfel: ${errorMessage}`, 500)
   }
 }

@@ -126,6 +126,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('Ogiltig förfrågan', 400)
     }
     console.error('Complete exam error:', error)
-    return errorResponse('Ett fel uppstod', 500)
+    // Return more descriptive error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Okänt fel'
+    return errorResponse(`Databasfel: ${errorMessage}`, 500)
   }
 }

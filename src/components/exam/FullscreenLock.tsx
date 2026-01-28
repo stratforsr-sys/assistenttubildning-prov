@@ -12,34 +12,44 @@ interface FullscreenLockProps {
   warningSeconds?: number
 }
 
-export function FullscreenLock({ 
-  children, 
+export function FullscreenLock({
+  children,
   onExitAttempt,
-  warningSeconds = 10 
+  warningSeconds = 10
 }: FullscreenLockProps) {
   const [isInFullscreen, setIsInFullscreen] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
   const [countdown, setCountdown] = useState(warningSeconds)
   const [showRulesModal, setShowRulesModal] = useState(true)
   const [rulesAccepted, setRulesAccepted] = useState(false)
+  const [hasExited, setHasExited] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   // Handle fullscreen change
   const handleFullscreenChange = useCallback(() => {
+    if (hasExited) return
+
     const fullscreen = isFullscreen()
     setIsInFullscreen(fullscreen)
-    
-    if (!fullscreen && rulesAccepted) {
+
+    if (!fullscreen && rulesAccepted && !hasExited) {
       // User exited fullscreen - show warning
       setShowWarning(true)
       setCountdown(warningSeconds)
-      
+
+      // Clear any existing countdown
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
+
       // Start countdown
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(countdownRef.current!)
+            countdownRef.current = null
+            setHasExited(true)
             onExitAttempt()
             return 0
           }
@@ -51,21 +61,31 @@ export function FullscreenLock({
       setShowWarning(false)
       if (countdownRef.current) {
         clearInterval(countdownRef.current)
+        countdownRef.current = null
       }
     }
-  }, [rulesAccepted, warningSeconds, onExitAttempt])
-  
+  }, [rulesAccepted, warningSeconds, onExitAttempt, hasExited])
+
   // Handle visibility change (tab switch)
   const handleVisibilityChange = useCallback(() => {
-    if (document.hidden && rulesAccepted) {
+    if (hasExited) return
+
+    if (document.hidden && rulesAccepted && !hasExited) {
       // User switched tab - show warning
       setShowWarning(true)
       setCountdown(warningSeconds)
-      
+
+      // Clear any existing countdown
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
+
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(countdownRef.current!)
+            countdownRef.current = null
+            setHasExited(true)
             onExitAttempt()
             return 0
           }
@@ -78,10 +98,11 @@ export function FullscreenLock({
         setShowWarning(false)
         if (countdownRef.current) {
           clearInterval(countdownRef.current)
+          countdownRef.current = null
         }
       }
     }
-  }, [rulesAccepted, warningSeconds, onExitAttempt])
+  }, [rulesAccepted, warningSeconds, onExitAttempt, hasExited])
   
   // Setup event listeners
   useEffect(() => {
